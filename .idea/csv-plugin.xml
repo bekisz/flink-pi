@@ -10,6 +10,13 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="/src/main/scala/pi/PiExperimentSQL.scala">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="/src/main/scala/spendreport/FraudDetectionJob.scala">
           <value>
             <Attribute>

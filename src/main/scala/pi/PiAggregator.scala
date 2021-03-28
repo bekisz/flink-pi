@@ -25,6 +25,8 @@ import org.apache.flink.util.Collector
 import org.apache.flink.api.common.state.ValueState
 import org.apache.flink.api.common.state.ValueStateDescriptor
 
+// TODO : Delete it or make use of it
+
 @SerialVersionUID(1L)
 class PiAggregator extends  ProcessFunction[Double, Double] {
 

@@ -19,49 +19,45 @@
 package pi
 
 import org.apache.flink.streaming.api.scala._
+import org.apache.flink.streaming.api.scala.extensions.acceptPartialFunctions
 import org.apache.flink.table.api.EnvironmentSettings
 import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
 
 import scala.math.random
 
-
-case class PiOutput(piValue:Double)
-
-class PiOutputIterator2 extends java.util.Iterator[PiOutput] with Serializable {
-  def hasNext: Boolean = true
-  def next: PiOutput = {
-    val (x, y) = (random * 2 - 1, random * 2 - 1)
-    PiOutput(if (x * x + y * y < 1) 4.0 else 0.0)
-  }
+case class PiTrialOutput(withinCircle: Boolean)
+case class PiAggregation(empiricalPi: Double, count: Long) {
+  override def toString: String
+  = s"The empirical PI = $empiricalPi after ${count/(1*1000*1000)} million trials." +
+    s"\tDistance from PI = ${Math.abs(Math.PI - empiricalPi)}"
 }
 
 object PiExperimentSQL {
 
-  @throws[Exception]
   def main(args: Array[String]): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val envSettings = EnvironmentSettings.newInstance()
+      .useBlinkPlanner().inStreamingMode().build()
+    val tableEnv = StreamTableEnvironment.create(env, envSettings)
 
+    val piOutput = env
+      .addSource(new IdGenerator).name("Id Generator")
+      .mapWith { _ =>
+        val (x, y) = (random * 2 - 1, random * 2 - 1)
+        PiTrialOutput(x * x + y * y < 1)
+      }.name("Random Darts")
 
-    val tEnv = StreamTableEnvironment.create(env)
-    val fsSettings = EnvironmentSettings.newInstance().useOldPlanner().inStreamingMode().build()
-    val fsEnv = StreamExecutionEnvironment.getExecutionEnvironment
-    val fsTableEnv = StreamTableEnvironment.create(fsEnv, fsSettings)
+    tableEnv.createTemporaryView("PiOutputTable", piOutput)
 
+    val query = "SELECT 4.0 * AVG(CAST(withinCircle AS Double)), COUNT(*) " +
+      "FROM PiOutputTable HAVING COUNT(*) % 1000000 = 0"
 
-    val source = env.addSource(new PiSource).name("piSource")
-
-
-    fsTableEnv.fromDataStream(source)
-    fsTableEnv.createTemporaryView("piSource", source)
-    println()
-    // register the Table projTable as table "projectedTable"
-    //tableEnv.createTemporaryView("projectedTable", projTable)
-    val query = "SELECT AVG(piValue) AS avgPi FROM piSource GROUP BY TUMBLE(rowtime, INTERVAL '10' SECOND)"
-    //val table = fsTableEnv.sqlQuery()
-
-    // Just for printing purposes, in reality you would need something other than Row
-    //tableEnv.toAppendStream(table, classOf[Nothing]).print
-
+    val table = tableEnv.sqlQuery(query)
+    tableEnv.toRetractStream[PiAggregation](table)
+      .filterWith{ case (isUpdate, _)  => isUpdate }
+      .mapWith{  case (_, piAggr) => piAggr }
+      .addSink(result => println(result.toString)).name("Pi Sink")
+    env.execute("Pi Estimation with Flink SQL")
 
   }
 }

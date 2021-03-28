@@ -40,6 +40,7 @@
                 <transformer>
                   <mainClass>pi.PiExperiment2</mainClass>
                 </transformer>
+                <transformer />
               </transformers>
             </configuration>
           </execution>
@@ -225,12 +226,16 @@
     </dependency>
     <dependency>
       <groupId>org.apache.flink</groupId>
-      <artifactId>flink-table-planner_2.11</artifactId>
+      <artifactId>flink-table-planner-blink_2.11</artifactId>
       <version>1.12.2</version>
       <scope>provided</scope>
       <exclusions>
         <exclusion>
-          <artifactId>flink-table-common</artifactId>
+          <artifactId>flink-table-api-java</artifactId>
+          <groupId>org.apache.flink</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>flink-table-api-scala_2.11</artifactId>
           <groupId>org.apache.flink</groupId>
         </exclusion>
         <exclusion>
@@ -238,7 +243,47 @@
           <groupId>org.apache.flink</groupId>
         </exclusion>
         <exclusion>
-          <artifactId>flink-table-api-scala-bridge_2.11</artifactId>
+          <artifactId>flink-table-runtime-blink_2.11</artifactId>
+          <groupId>org.apache.flink</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>reflections</artifactId>
+          <groupId>org.reflections</groupId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.flink</groupId>
+      <artifactId>flink-table-common</artifactId>
+      <version>1.12.2</version>
+      <scope>provided</scope>
+      <exclusions>
+        <exclusion>
+          <artifactId>flink-connector-files</artifactId>
+          <groupId>org.apache.flink</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>flink-shaded-asm-7</artifactId>
+          <groupId>org.apache.flink</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>flink-core</artifactId>
+          <groupId>org.apache.flink</groupId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.flink</groupId>
+      <artifactId>flink-table-api-scala-bridge_2.11</artifactId>
+      <version>1.12.2</version>
+      <scope>provided</scope>
+      <exclusions>
+        <exclusion>
+          <artifactId>flink-table-api-scala_2.11</artifactId>
+          <groupId>org.apache.flink</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>flink-scala_2.11</artifactId>
           <groupId>org.apache.flink</groupId>
         </exclusion>
       </exclusions>
