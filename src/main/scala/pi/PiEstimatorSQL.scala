@@ -25,39 +25,42 @@ import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
 
 import scala.math.random
 
-case class PiTrialOutput(withinCircle: Boolean)
+case class PiTrialOutput(isWithinCircle: Boolean)
 case class PiAggregation(empiricalPi: Double, count: Long) {
   override def toString: String
   = s"The empirical PI = $empiricalPi after ${count/(1*1000*1000)} million trials." +
     s"\tDistance from PI = ${Math.abs(Math.PI - empiricalPi)}"
 }
 
-object PiExperimentSQL {
+object PiEstimatorSQL {
 
+  private def configureTableEnv(env:StreamExecutionEnvironment) : StreamTableEnvironment = {
+    val envSettings = EnvironmentSettings.newInstance()
+    .useBlinkPlanner().inStreamingMode().build()
+    val tableEnv = StreamTableEnvironment.create(env, envSettings)
+    val configuration = tableEnv.getConfig.getConfiguration
+    configuration.setString("table.exec.mini-batch.enabled", "true") // local-global aggregation depends on mini-batch is enabled
+    configuration.setString("table.exec.mini-batch.allow-latency", "1s")
+    configuration.setString("table.exec.mini-batch.size", "1000000")
+    configuration.setString("table.optimizer.agg-phase-strategy", "TWO_PHASE") // enable two-phase, i.e. local-global aggregation
+    tableEnv
+  }
   def main(args: Array[String]): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val envSettings = EnvironmentSettings.newInstance()
-      .useBlinkPlanner().inStreamingMode().build()
-    val tableEnv = StreamTableEnvironment.create(env, envSettings)
-
+    val tableEnv = configureTableEnv(env)
     val piOutput = env
       .addSource(new IdGenerator).name("Id Generator")
       .mapWith { _ =>
         val (x, y) = (random * 2 - 1, random * 2 - 1)
-        PiTrialOutput(x * x + y * y < 1)
+        PiTrialOutput(isWithinCircle =  x * x + y * y < 1)
       }.name("Random Darts")
 
     tableEnv.createTemporaryView("PiOutputTable", piOutput)
-
-    val query = "SELECT 4.0 * AVG(CAST(withinCircle AS Double)), COUNT(*) " +
-      "FROM PiOutputTable HAVING COUNT(*) % 1000000 = 0"
-
-    val table = tableEnv.sqlQuery(query)
+    val sql = "SELECT 4.0 * AVG(CAST(isWithinCircle AS Double)), COUNT(*) FROM PiOutputTable"
+    val table = tableEnv.sqlQuery(sql)
     tableEnv.toRetractStream[PiAggregation](table)
-      .filterWith{ case (isUpdate, _)  => isUpdate }
-      .mapWith{  case (_, piAggr) => piAggr }
+      .filterWith{ case (isUpdate, _)  => isUpdate }.mapWith{  case (_, piAggr) => piAggr }
       .addSink(result => println(result.toString)).name("Pi Sink")
     env.execute("Pi Estimation with Flink SQL")
-
   }
 }
