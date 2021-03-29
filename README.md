@@ -12,7 +12,7 @@ The example approximates Pi with the Monte Carlo method
 Both example has the same functionality, by iteratively 
 approaching better and better estimate for the value of Pi. 
 
-##How it Works 
+## How it Works 
 
 [IdGenerator](https://github.com/bekisz/flink-pi/blob/main/src/main/scala/com/github/bekisz/flink/example/pi/IdGenerator.scala) 
 acts as custom Flink DataSource continuously generating a sequence of `Long` values from `0` to `Infinity`.
