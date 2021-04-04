@@ -1,6 +1,6 @@
-package com.github.bekisz.flink.example.pi
+package com.github.bekisz.flink.example.pi.ds
 
-import org.apache.flink.api.scala._
+import org.apache.flink.api.scala.createTypeInformation
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.scala.extensions.acceptPartialFunctions
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows
@@ -18,7 +18,7 @@ import scala.math.random
  * Pi/4 = P(isWithinCircle)/1 => Pi = 4 * P(isWithinCircle)
  */
 
-object PiEstimatorDS {
+object PiEstimator {
 
   def main(args: Array[String]): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
@@ -32,7 +32,7 @@ object PiEstimatorDS {
       .window(TumblingProcessingTimeWindows.of(Time.seconds(2)))
       .reduce { (x, y) => (x._1 + y._1, x._2 + y._2, x._3 + y._3) } // First phase of aggregation (/thread)
       .name("Thread Local Sum")
-      .windowAll(TumblingProcessingTimeWindows.of(Time.seconds(5)))
+      .windowAll(TumblingProcessingTimeWindows.of(Time.seconds(3)))
       .reduce { (x, y) => (x._1 + y._1, x._2 + y._2, x._3 + y._3) } // Second phase of aggregation (global)
       .name("Global Sum")
       .keyBy(_._1 % 1)

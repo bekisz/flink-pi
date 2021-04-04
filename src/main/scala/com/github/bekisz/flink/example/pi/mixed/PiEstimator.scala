@@ -1,6 +1,9 @@
-package com.github.bekisz.flink.example.pi
+package com.github.bekisz.flink.example.pi.mixed
 
-import org.apache.flink.streaming.api.scala._
+
+import com.github.bekisz.flink.example.pi.ds.{IdGenerator, PiAggregation}
+import org.apache.flink.api.scala.createTypeInformation
+import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.scala.extensions.acceptPartialFunctions
 import org.apache.flink.table.api.EnvironmentSettings
 import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
@@ -17,32 +20,30 @@ import scala.math.random
  * Pi/4 = P(isWithinCircle)/1 => Pi = 4 * P(isWithinCircle)
  */
 
-object PiEstimatorSQL {
-
-  private def createTableEnv(env: StreamExecutionEnvironment): StreamTableEnvironment = {
-    val envSettings = EnvironmentSettings.newInstance()
-      .useBlinkPlanner().inStreamingMode().build()
+object PiEstimator {
+  private val env = StreamExecutionEnvironment.getExecutionEnvironment
+  private val tableEnv = {
+    val envSettings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build()
     val tableEnv = StreamTableEnvironment.create(env, envSettings)
-    val configuration = tableEnv.getConfig.getConfiguration
-    configuration.setString("table.exec.mini-batch.enabled", "true") // local-global aggregation depends on mini-batch is enabled
-    configuration.setString("table.exec.mini-batch.allow-latency", "1s")
-    configuration.setString("table.exec.mini-batch.size", "1000000")
-    configuration.setString("table.optimizer.agg-phase-strategy", "TWO_PHASE") // enable two-phase, i.e. local-global aggregation
+    val conf = tableEnv.getConfig.getConfiguration
+    conf.setString("table.exec.mini-batch.enabled", "true") // local-global aggregation depends on mini-batch is enabled
+    conf.setString("table.exec.mini-batch.allow-latency", "3s")
+    conf.setString("table.exec.mini-batch.size", "1000000")
+    conf.setString("table.optimizer.agg-phase-strategy", "TWO_PHASE") // enable two-phase, i.e. local-global aggregation
     tableEnv
   }
 
+
   def main(args: Array[String]): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = createTableEnv(env)
     val piOutput = env
       .addSource(new IdGenerator).name("Id Generator")
       .mapWith { _ =>
         val (x, y) = (random * 2 - 1, random * 2 - 1)
-        PiTrialOutput(isWithinCircle = x * x + y * y < 1)
+        x * x + y * y < 1
       }.name("Inner or Outer Circle Random Trials")
 
-    tableEnv.createTemporaryView("PiOutputTable", piOutput)
-    val sql = "SELECT 4.0 * AVG(CAST(isWithinCircle AS Double)), COUNT(*) FROM PiOutputTable"
+    tableEnv.createTemporaryView("PiOutput", piOutput)
+    val sql = "SELECT 4.0 * AVG(CAST(f0 AS DOUBLE)), COUNT(*) FROM PiOutput"
     val piAggregationTable = tableEnv.sqlQuery(sql)
     tableEnv.toRetractStream[PiAggregation](piAggregationTable)
       .filterWith { case (isUpdate, _) => isUpdate }.mapWith { case (_, piAggr) => piAggr }

@@ -1,4 +1,4 @@
-package com.github.bekisz.flink.example.pi
+package com.github.bekisz.flink.example.pi.ds
 
 import org.apache.flink.streaming.api.functions.source.FromIteratorFunction
 
